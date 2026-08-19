@@ -1,0 +1,116 @@
+#+title: A collection of presets for gptel
+
+A preset is a named collection of [[https://github.com/karthink/gptel][gptel]] settings and behaviors applied to an LLM query as a unit: they can set or change the backend and model, system message, context sources, response handling, and so on.  See the gptel manual ([[https://gptel.org/manual.html]]) for details.  There is also [[https://www.youtube.com/watch?v=xHEnWvKmSKM][an extensive YouTube demo]] (28 minutes). 
+
+gptel presets can be applied buffer-wide or globally with =M-x gptel-preset= (or from the gptel menu), or inline in the prompt with an =@name= cookie:
+
+#+begin_example
+@include README.org gptel-preset-collection.el
+Describe this package.
+#+end_example
+
+*All presets in this collection are meant to be used inline in the prompt*, where they apply only to the request whose prompt contains the cookie.  Don't apply them globally with =gptel-preset=: several of them (=@expand=, =@json=, =@include=) parse the prompt text at the cookie and only work inline.
+
+* Setup
+
+Install this package manually (using =package-install-file=), or using VC (built into Emacs 30):
+
+#+begin_src emacs-lisp
+(use-package gptel-preset-collection
+  :vc (:url "https://github.com/karthink/gptel-preset-collection"
+       :rev :newest)
+  :after gptel)
+#+end_src
+
+or Straight or Elpaca:
+
+#+begin_src emacs-lisp
+;; Straight
+(use-package gptel-preset-collection
+  :straight (:host github :repo "karthink/gptel-preset-collection")
+  :after gptel)
+
+;; Elpaca
+(use-package gptel-preset-collection
+  :ensure (:host github :repo "karthink/gptel-preset-collection")
+  :after gptel)
+#+end_src
+
+
+* Usage
+
+Loading the package registers the following presets.  Cookies can appear anywhere in the prompt and can be combined, e.g. =@nostream @json [...]=.
+
+The presets will be applied when you send the prompt (=M-x gptel-send=).
+
+** =@nostream=
+
+Turn off streaming for this request; the response is inserted when the request completes.
+
+** =@notify=
+
+Send a desktop notification when the response completes or errors out.
+
+#+begin_example
+What is the origin of the term "brobdingnagian"? @notify
+#+end_example
+
+Uses D-Bus, AppleScript, w32 notifications or =notify-send= as available, falling back to an echo-area message.
+
+** =@include=
+
+Add buffers, files and directories listed after the cookie to the request's context.
+
+#+begin_example
+@include gptel.el ~/projects/foo/ *scratch*
+Review these for mistakes.
+#+end_example
+
+Buffer names and file names (relative to =default-directory=) both work, names may be quoted, binary files are attached with their mime type where possible, and including a directory prompts for whether to include all of its files.  Loading this package also enables completion at point for buffer and file names following the =@include= cookie in gptel buffers.
+
+** =@visible-text=
+
+Add the visible portion of each window in the frame to the context.
+
+#+begin_example
+@visible-text What change in this diff might be causing the error in the compilation window?
+#+end_example
+
+** =@visible-buffers=
+
+Add the full text of every buffer visible in the Emacs frame (except gptel chat buffers) to the context.
+
+** =@expand=
+
+Expand shell commands and Elisp forms in the prompt in place, before the request is sent:  =$:{command}= is replaced by the output of a shell command, =$:(form)= by the result of evaluating an Elisp form.
+
+#+begin_example
+@expand Explain this error:
+$:{journalctl --user -u sortmail.service}
+
+The current time is $:(format-time-string "%H:%M") here.
+#+end_example
+
+** =@json=
+
+Force the LLM to respond with JSON conforming to a schema given in shorthand after the cookie.  This must be specified last in the prompt.
+
+The schema is deleted from the prompt before the request is sent, and the model's "thinking" content is omitted from the response.
+
+To generate an object:
+#+begin_example
+Generate a cute cat
+
+@json name str, age int, fav_activity str
+#+end_example
+
+To generate an array of objects:
+#+begin_example
+Five Bulwer-Lytton contest-winning sentences
+
+@json [sentence str, year int]
+#+end_example
+
+NOTE: Valid JSON schema must have an object at top-level, so this array will be wrapped in an object.
+
+See =gptel--dispatch-schema-type= for more ways to specify the schema inline.
