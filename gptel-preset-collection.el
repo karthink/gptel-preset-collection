@@ -207,7 +207,11 @@ continue with gptel request? " source)))
         (message "Ignoring source \"%s\", file not readable" source))))
   context)
 
-(add-hook 'gptel-mode-hook #'gpc-capf)
+(defun gpc-setup-capf ()
+  "Add preset argument completion in gptel buffers."
+  (add-hook 'completion-at-point-functions #'gpc-capf nil t))
+(add-hook 'gptel-mode-hook #'gpc-setup-capf)
+
 (gptel-make-preset 'include
   :description "CONTEXT: Include file or buffer names following @include"
   :context `(:function ,#'gpc--parse-line))
